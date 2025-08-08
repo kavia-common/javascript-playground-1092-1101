@@ -67,7 +67,7 @@ greet("World");
       try {
         ${code}
       } catch (err) {
-        window.console.error(err.toString());
+        window.console.error(err && err.toString ? err.toString() : String(err));
       }
     `;
 
@@ -92,14 +92,29 @@ greet("World");
     window.addEventListener("message", messageHandler);
 
     // Run the code
-    let script = iframe.contentDocument.createElement("script");
-    script.type = "text/javascript";
-    script.textContent = scriptText;
-    iframe.contentDocument.body.appendChild(script);
+    // Defensive: Ensure iframe and its contentDocument/body exist before accessing them.
+    try {
+      const doc = iframe.contentDocument || iframe.contentWindow?.document;
+      if (doc && doc.body) {
+        let script = doc.createElement("script");
+        script.type = "text/javascript";
+        script.textContent = scriptText;
+        doc.body.appendChild(script);
+      } else {
+        // Could not access iframe document body, post message as error to user
+        setError("Sandboxed iframe for code execution failed to initialize. Please try again.");
+      }
+    } catch (err) {
+      setError("Failed to run code: " + (err && err.toString ? err.toString() : String(err)));
+    }
 
     // Remove listener and iframe after some ms
     setTimeout(() => {
-      document.body.removeChild(iframe);
+      try {
+        document.body.removeChild(iframe);
+      } catch {
+        /* Already removed or never added, ignore */
+      }
       window.removeEventListener("message", messageHandler);
     }, 100);
 
