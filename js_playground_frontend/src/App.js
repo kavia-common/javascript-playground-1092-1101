@@ -39,7 +39,6 @@ greet("World");
   };
 
   // PUBLIC_INTERFACE
-  // PUBLIC_INTERFACE
   // Run JS code using a sandboxed, same-origin iframe. Capture logs/errors via postMessage, avoiding direct parent access.
   const runCode = () => {
     setConsoleOutput([]);
@@ -49,21 +48,29 @@ greet("World");
 
     // Handler for postMessage from iframe
     function messageHandler(event) {
-      // Only accept messages of our protocol, from same-origin for safety
-      if (
-        event.origin === window.origin &&
-        event.data &&
-        event.data.source === "jsplayground" &&
-        ["log", "error", "alert"].includes(event.data.type)
-      ) {
-        if (event.data.type === "log") {
-          capturedLogs.push({ type: "log", value: event.data.args.join(" ") });
-        } else if (event.data.type === "error") {
-          capturedLogs.push({ type: "error", value: event.data.args.join(" ") });
-        } else if (event.data.type === "alert") {
-          capturedLogs.push({ type: "alert", value: event.data.args.join(" ") });
+      // Security: Only accept messages from *exact* same origin and our expected format.
+      // All property access must be guarded because some browser/cross-origin config WILL throw SecurityError
+      try {
+        if (
+          event.origin === window.location.origin &&
+          event.data &&
+          typeof event.data === "object" &&
+          event.data.source === "jsplayground" &&
+          ["log", "error", "alert"].includes(event.data.type)
+        ) {
+          if (event.data.type === "log") {
+            capturedLogs.push({ type: "log", value: event.data.args.join(" ") });
+          } else if (event.data.type === "error") {
+            capturedLogs.push({ type: "error", value: event.data.args.join(" ") });
+          } else if (event.data.type === "alert") {
+            capturedLogs.push({ type: "alert", value: event.data.args.join(" ") });
+          }
+          setConsoleOutput([...capturedLogs]);
         }
-        setConsoleOutput([...capturedLogs]);
+      } catch (securityError) {
+        // If a SecurityError is raised, ignore the message (often from a cross-origin frame)
+        // Optionally uncomment the next line for debugging:
+        // console.warn("Blocked cross-origin message", securityError);
       }
     }
 
@@ -78,11 +85,19 @@ greet("World");
 
     // Script to run inside the iframe: relay all output back via postMessage
     // To avoid cross-origin access, script runs everything inside its window.
+    // Note: window.location.origin works everywhere (window.origin may be undefined)
     const safeScriptContent = `
       (function() {
         // Custom console, no parent access.
         function send(type, ...args) {
-          window.top.postMessage({ source: 'jsplayground', type, args }, window.origin || '*');
+          try {
+            window.top.postMessage(
+              { source: 'jsplayground', type, args },
+              window.location.origin || '*'
+            );
+          } catch(e) {
+            // Fallback or ignore if postMessage fails
+          }
         }
         window.console = {
           log: (...args) => send('log', ...args),
@@ -101,7 +116,7 @@ greet("World");
     // Wait until iframe is ready and inject script
     function injectAndRun() {
       try {
-        const doc = iframe.contentDocument || iframe.contentWindow?.document;
+        const doc = iframe.contentDocument || (iframe.contentWindow && iframe.contentWindow.document);
         if (doc && doc.body) {
           // Clear body (avoid residual scripts)
           doc.body.innerHTML = "";
@@ -120,12 +135,15 @@ greet("World");
       }
     }
 
-    if (iframe.contentWindow && iframe.contentWindow.document.readyState === "complete") {
+    // Always check for the contentWindow/document, if not ready (rare), run after onload and fallback with setTimeout.
+    if (
+      iframe.contentWindow &&
+      iframe.contentWindow.document &&
+      iframe.contentWindow.document.readyState === "complete"
+    ) {
       injectAndRun();
     } else {
-      // Run onload in case iframe doc wasn't instantly ready (rare, but robust)
       iframe.onload = injectAndRun;
-      // Also call after slight delay in case onload is not fired
       setTimeout(injectAndRun, 20);
     }
 
