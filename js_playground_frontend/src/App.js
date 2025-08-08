@@ -39,41 +39,19 @@ greet("World");
   };
 
   // PUBLIC_INTERFACE
-  // Run JS code using a sandboxed iframe, capture console logs/errors
+  // PUBLIC_INTERFACE
+  // Run JS code using a sandboxed, same-origin iframe. Capture logs/errors via postMessage, avoiding direct parent access.
   const runCode = () => {
     setConsoleOutput([]);
     setError(null);
 
-    // Create iframe dynamically for sandboxed code exec
-    const iframe = document.createElement("iframe");
-    iframe.style.display = "none";
-    iframe.sandbox = "allow-scripts";
-    document.body.appendChild(iframe);
-
     let capturedLogs = [];
-    // Provide replacement for console.log, console.error, alert, etc. within iframe
-    const scriptText = `
-      window.console = {
-        log: function(...args) {
-          parent.postMessage({ source: 'jsplayground', type: 'log', args }, '*');
-        },
-        error: function(...args) {
-          parent.postMessage({ source: 'jsplayground', type: 'error', args }, '*');
-        }
-      };
-      window.alert = function(...args) {
-        parent.postMessage({ source: 'jsplayground', type: 'alert', args }, '*');
-      };
-      try {
-        ${code}
-      } catch (err) {
-        window.console.error(err && err.toString ? err.toString() : String(err));
-      }
-    `;
 
-    // Listen for output from iframe
+    // Handler for postMessage from iframe
     function messageHandler(event) {
+      // Only accept messages of our protocol, from same-origin for safety
       if (
+        event.origin === window.origin &&
         event.data &&
         event.data.source === "jsplayground" &&
         ["log", "error", "alert"].includes(event.data.type)
@@ -91,34 +69,75 @@ greet("World");
 
     window.addEventListener("message", messageHandler);
 
-    // Run the code
-    // Defensive: Ensure iframe and its contentDocument/body exist before accessing them.
-    try {
-      const doc = iframe.contentDocument || iframe.contentWindow?.document;
-      if (doc && doc.body) {
-        let script = doc.createElement("script");
-        script.type = "text/javascript";
-        script.textContent = scriptText;
-        doc.body.appendChild(script);
-      } else {
-        // Could not access iframe document body, post message as error to user
-        setError("Sandboxed iframe for code execution failed to initialize. Please try again.");
+    // Create a sandboxed iframe (same origin) and inject code inside
+    const iframe = document.createElement("iframe");
+    iframe.style.display = "none";
+    // `allow-scripts` but do NOT add `allow-same-origin` (keeps frame isolated)
+    iframe.sandbox = "allow-scripts";
+    document.body.appendChild(iframe);
+
+    // Script to run inside the iframe: relay all output back via postMessage
+    // To avoid cross-origin access, script runs everything inside its window.
+    const safeScriptContent = `
+      (function() {
+        // Custom console, no parent access.
+        function send(type, ...args) {
+          window.top.postMessage({ source: 'jsplayground', type, args }, window.origin || '*');
+        }
+        window.console = {
+          log: (...args) => send('log', ...args),
+          error: (...args) => send('error', ...args)
+        };
+        window.alert = (...args) => send('alert', ...args);
+
+        try {
+          ${code}
+        } catch (err) {
+          window.console.error(err && err.toString ? err.toString() : String(err));
+        }
+      })();
+    `;
+
+    // Wait until iframe is ready and inject script
+    function injectAndRun() {
+      try {
+        const doc = iframe.contentDocument || iframe.contentWindow?.document;
+        if (doc && doc.body) {
+          // Clear body (avoid residual scripts)
+          doc.body.innerHTML = "";
+          // Create script element
+          const script = doc.createElement("script");
+          script.type = "text/javascript";
+          script.textContent = safeScriptContent;
+          doc.body.appendChild(script);
+        } else {
+          setError(
+            "Sandboxed iframe for code execution failed to initialize. Please try again."
+          );
+        }
+      } catch (err) {
+        setError("Failed to run code: " + (err && err.toString ? err.toString() : String(err)));
       }
-    } catch (err) {
-      setError("Failed to run code: " + (err && err.toString ? err.toString() : String(err)));
     }
 
-    // Remove listener and iframe after some ms
+    if (iframe.contentWindow && iframe.contentWindow.document.readyState === "complete") {
+      injectAndRun();
+    } else {
+      // Run onload in case iframe doc wasn't instantly ready (rare, but robust)
+      iframe.onload = injectAndRun;
+      // Also call after slight delay in case onload is not fired
+      setTimeout(injectAndRun, 20);
+    }
+
+    // Cleanup after a short time (gives time for async logs/errors)
     setTimeout(() => {
       try {
         document.body.removeChild(iframe);
-      } catch {
-        /* Already removed or never added, ignore */
-      }
+      } catch {}
       window.removeEventListener("message", messageHandler);
-    }, 100);
+    }, 120); // a bit longer, catch async logs
 
-    // Note: Errors thrown asynchronously won't always appear here
+    // Note: async errors after timeout won't show; this is expected for a playground
   };
 
   // Reset editor to default code
