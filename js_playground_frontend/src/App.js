@@ -39,17 +39,17 @@ greet("World");
   };
 
   // PUBLIC_INTERFACE
-  // Run JS code using a sandboxed, same-origin iframe. Capture logs/errors via postMessage, avoiding direct parent access.
+  // Run JS code using a sandboxed, same-origin iframe. 
+  // All inter-frame communication is now performed EXCLUSIVELY via postMessage, 
+  // removing all cross-origin/cross-frame property access.
   const runCode = () => {
     setConsoleOutput([]);
     setError(null);
 
     let capturedLogs = [];
+    let iframe = null;
 
-    // Handler for postMessage from iframe
     function messageHandler(event) {
-      // Security: Only accept messages from *exact* same origin and our expected format.
-      // All property access must be guarded because some browser/cross-origin config WILL throw SecurityError
       try {
         if (
           event.origin === window.location.origin &&
@@ -68,94 +68,121 @@ greet("World");
           setConsoleOutput([...capturedLogs]);
         }
       } catch (securityError) {
-        // If a SecurityError is raised, ignore the message (often from a cross-origin frame)
-        // Optionally uncomment the next line for debugging:
-        // console.warn("Blocked cross-origin message", securityError);
+        // Catch and ignore any SecurityError (shouldn't happen with postMessage-only approach)
       }
     }
 
     window.addEventListener("message", messageHandler);
 
-    // Create a sandboxed iframe (same origin) and inject code inside
-    const iframe = document.createElement("iframe");
-    iframe.style.display = "none";
-    // `allow-scripts` but do NOT add `allow-same-origin` (keeps frame isolated)
-    iframe.sandbox = "allow-scripts";
-    document.body.appendChild(iframe);
+    // srcdoc HTML for the sandboxed iframe to listen for code and run it
+    const runnerHTML = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="UTF-8">
+        </head>
+        <body>
+          <script>
+            // Disable parent access
+            window.parent = null;
+            window.top = window;
+            // Only listen for messages from same origin parent
+            window.addEventListener('message', function(event) {
+              try {
+                if (event.origin !== window.location.origin) return;
+                if (!event.data || typeof event.data !== 'object' || event.data.source !== 'jsplayground' || event.data.type !== 'run') return;
+                // Custom console, only postMessage out
+                function send(type, ...args) {
+                  try {
+                    window.top.postMessage(
+                      { source: 'jsplayground', type, args },
+                      window.location.origin || '*'
+                    );
+                  } catch(e) {}
+                }
+                window.console = {
+                  log: (...args) => send('log', ...args),
+                  error: (...args) => send('error', ...args)
+                };
+                window.alert = (...args) => send('alert', ...args);
 
-    // Script to run inside the iframe: relay all output back via postMessage
-    // To avoid cross-origin access, script runs everything inside its window.
-    // Note: window.location.origin works everywhere (window.origin may be undefined)
-    const safeScriptContent = `
-      (function() {
-        // Custom console, no parent access.
-        function send(type, ...args) {
-          try {
-            window.top.postMessage(
-              { source: 'jsplayground', type, args },
-              window.location.origin || '*'
-            );
-          } catch(e) {
-            // Fallback or ignore if postMessage fails
-          }
-        }
-        window.console = {
-          log: (...args) => send('log', ...args),
-          error: (...args) => send('error', ...args)
-        };
-        window.alert = (...args) => send('alert', ...args);
-
-        try {
-          ${code}
-        } catch (err) {
-          window.console.error(err && err.toString ? err.toString() : String(err));
-        }
-      })();
+                try {
+                  eval(event.data.payload);
+                } catch (err) {
+                  window.console.error(err && err.toString ? err.toString() : String(err));
+                }
+              } catch (e) {
+                // ignore
+              }
+            });
+            // Notify parent we're ready (optional).
+            window.top.postMessage({ source: 'jsplayground', type: 'ready' }, window.location.origin || '*');
+          </script>
+        </body>
+      </html>
     `;
 
-    // Wait until iframe is ready and inject script
-    function injectAndRun() {
+    // Clean up any existing iframe
+    // (Not strictly necessary, but in case runCode is called rapidly)
+    const existing = document.getElementById("playground-runner-iframe");
+    if (existing) {
+      try { existing.remove(); } catch {}
+    }
+
+    // Create/attach hidden sandboxed iframe
+    iframe = document.createElement("iframe");
+    iframe.id = "playground-runner-iframe";
+    iframe.style.display = "none";
+    iframe.sandbox = "allow-scripts"; // no allow-same-origin
+    iframe.srcdoc = runnerHTML;
+    document.body.appendChild(iframe);
+
+    // Send the code to the sandbox via postMessage as soon as it loads
+    function sendCodeToIframe() {
       try {
-        const doc = iframe.contentDocument || (iframe.contentWindow && iframe.contentWindow.document);
-        if (doc && doc.body) {
-          // Clear body (avoid residual scripts)
-          doc.body.innerHTML = "";
-          // Create script element
-          const script = doc.createElement("script");
-          script.type = "text/javascript";
-          script.textContent = safeScriptContent;
-          doc.body.appendChild(script);
-        } else {
-          setError(
-            "Sandboxed iframe for code execution failed to initialize. Please try again."
-          );
-        }
+        // Always use postMessage, never touch any iframe properties
+        iframe.contentWindow.postMessage(
+          { source: "jsplayground", type: "run", payload: code },
+          window.location.origin
+        );
       } catch (err) {
-        setError("Failed to run code: " + (err && err.toString ? err.toString() : String(err)));
+        setError("Failed to communicate with runner iframe (postMessage): " + (err && err.toString ? err.toString() : String(err)));
       }
     }
 
-    // Always check for the contentWindow/document, if not ready (rare), run after onload and fallback with setTimeout.
-    if (
-      iframe.contentWindow &&
-      iframe.contentWindow.document &&
-      iframe.contentWindow.document.readyState === "complete"
-    ) {
-      injectAndRun();
-    } else {
-      iframe.onload = injectAndRun;
-      setTimeout(injectAndRun, 20);
+    // Set up a listener to send code as soon as the iframe is ready
+    let ready = false;
+    function tempReadyHandler(event) {
+      try {
+        if (
+          event.source === iframe.contentWindow &&
+          event.origin === window.location.origin &&
+          event.data &&
+          typeof event.data === "object" &&
+          event.data.source === "jsplayground" &&
+          event.data.type === "ready"
+        ) {
+          ready = true;
+          sendCodeToIframe();
+          window.removeEventListener("message", tempReadyHandler);
+        }
+      } catch {}
     }
+    window.addEventListener("message", tempReadyHandler);
 
-    // Cleanup after a short time (gives time for async logs/errors)
+    // Fallback: send code after a short delay if ready was not received (iframe loads fast in practice)
+    setTimeout(function(){
+      if (!ready) sendCodeToIframe();
+    }, 30);
+
+    // Cleanup: Remove iframe and listeners after short time
     setTimeout(() => {
       try {
-        document.body.removeChild(iframe);
+        if (iframe && iframe.parentNode) iframe.parentNode.removeChild(iframe);
       } catch {}
       window.removeEventListener("message", messageHandler);
-    }, 120); // a bit longer, catch async logs
-
-    // Note: async errors after timeout won't show; this is expected for a playground
+      window.removeEventListener("message", tempReadyHandler);
+    }, 200); // a bit longer to catch async logs
   };
 
   // Reset editor to default code
