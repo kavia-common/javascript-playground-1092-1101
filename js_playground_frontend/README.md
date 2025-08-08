@@ -1,82 +1,47 @@
-# Lightweight React Template for KAVIA
+# JavaScript Playground Frontend (React)
 
-This project provides a minimal React template with a clean, modern UI and minimal dependencies.
+This is a modern, responsive **interactive JavaScript playground** built with React and Monaco Editor.
 
 ## Features
 
-- **Lightweight**: No heavy UI frameworks - uses only vanilla CSS and React
-- **Modern UI**: Clean, responsive design with KAVIA brand styling
-- **Fast**: Minimal dependencies for quick loading times
-- **Simple**: Easy to understand and modify
+- **Real-time JavaScript code editor** with syntax highlighting (Monaco)
+- **Instant code execution**, fully in-browser (sandboxed in iframe)
+- **Output/console panel** for showing logs and errors
+- **Split layout**: editor (left), output panel (right), controls on top
+- **Display of runtime errors**
+- **Modern minimalistic style** (light theme, accent colors)
+- **Responsive UI** for web and mobile
 
-## Getting Started
+## Layout
 
-In the project directory, you can run:
+- Top: Controls for "Run", "Reset", and "Clear Output"
+- Left: Monaco code editor
+- Right: Console/output panel
 
-### `npm start`
+## How it Works
 
-Runs the app in development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+- Write or edit JS code in the editor
+- Click "Run" (or use custom shortcut support)
+- Output (console.log, errors, alerts) shows on the right instantly
 
-### `npm test`
+## Colors & Theme
 
-Launches the test runner in interactive watch mode.
+- Accent: `#ffb300`  
+- Primary: `#1976d2`  
+- Secondary: `#424242`
 
-### `npm run build`
+## Dev Setup
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
-
-## Customization
-
-### Colors
-
-The main brand colors are defined as CSS variables in `src/App.css`:
-
-```css
-:root {
-  --kavia-orange: #E87A41;
-  --kavia-dark: #1A1A1A;
-  --text-color: #ffffff;
-  --text-secondary: rgba(255, 255, 255, 0.7);
-  --border-color: rgba(255, 255, 255, 0.1);
-}
+```
+npm install
+npm start
 ```
 
-### Components
+App will open at [http://localhost:3000](http://localhost:3000)
 
-This template uses pure HTML/CSS components instead of a UI framework. You can find component styles in `src/App.css`. 
+## Tech Stack
 
-Common components include:
-- Buttons (`.btn`, `.btn-large`)
-- Container (`.container`)
-- Navigation (`.navbar`)
-- Typography (`.title`, `.subtitle`, `.description`)
+- [React](https://react.dev/)
+- [@monaco-editor/react](https://github.com/suren-atoyan/monaco-react)
 
-## Learn More
-
-To learn React, check out the [React documentation](https://reactjs.org/).
-
-### Code Splitting
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+---

@@ -1,104 +1,134 @@
-/* CSS Variables for Theme Management */
 :root {
-  /* Light theme colors */
-  --bg-primary: #ffffff;
-  --bg-secondary: #f8f9fa;
-  --text-primary: #282c34;
-  --text-secondary: #61dafb;
-  --border-color: #e9ecef;
-  --button-bg: #007bff;
-  --button-text: #ffffff;
+  --primary: #1976d2;
+  --secondary: #424242;
+  --accent: #ffb300;
+  --bg-main: #f8f9fa;
+  --bg-panel: #fff;
+  --border: #e9ecef;
+  --text-main: #282c34;
+  --text-secondary: #666;
+  --console-bg: #23272e;
+  --console-text: #f6f7f7;
 }
 
-[data-theme="dark"] {
-  /* Dark theme colors */
-  --bg-primary: #1a1a1a;
-  --bg-secondary: #282c34;
-  --text-primary: #ffffff;
-  --text-secondary: #61dafb;
-  --border-color: #404040;
-  --button-bg: #0056b3;
-  --button-text: #ffffff;
+body {
+  margin: 0;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
+    "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
+    sans-serif;
+  background-color: var(--bg-main);
+  color: var(--text-main);
 }
 
-.App {
-  text-align: center;
-  background-color: var(--bg-primary);
-  color: var(--text-primary);
+.playground-root {
+  background: var(--bg-main);
   min-height: 100vh;
-  transition: background-color 0.3s ease, color 0.3s ease;
+  display: flex; flex-direction: column;
 }
 
-.App-logo {
-  height: 40vmin;
-  pointer-events: none;
+.playground-header {
+  padding: 18px 36px 10px 36px;
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  z-index: 2;
+  flex-shrink: 0;
 }
-
-@media (prefers-reduced-motion: no-preference) {
-  .App-logo {
-    animation: App-logo-spin infinite 20s linear;
-  }
+.playground-title {
+  font-size: 1.7rem; font-weight: 600; letter-spacing: -2px;
+  color: var(--primary);
 }
+.brand-accent {
+  color: var(--accent);
+  font-weight: 700;
+  letter-spacing: -0.5px;
+}
+.controls-group { display: flex; gap: 16px; }
+.btn {
+  font-size: 1rem; padding: 7px 20px; border-radius: 8px;
+  border: none; cursor: pointer; font-weight: 500;
+  box-shadow: 0 1px 6px rgba(44,68,95,.08);
+  transition: filter .19s;
+}
+.primary { background: var(--primary); color: #fff; }
+.secondary { background: var(--secondary); color: #fff; }
+.accent { background: var(--accent); color: var(--text-main); }
+.btn:hover { filter: brightness(95%); }
 
-.App-header {
-  background-color: var(--bg-secondary);
-  min-height: 100vh;
+.split-layout {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  font-size: calc(10px + 2vmin);
-  color: var(--text-primary);
-  transition: background-color 0.3s ease;
-  position: relative;
+  flex: 1 1 0%;
+  min-height: 0;
+  background: var(--bg-main);
 }
-
-.App-link {
-  color: var(--text-secondary);
-  transition: color 0.3s ease;
+.editor-section {
+  flex: 1.3;
+  min-width: 0;
+  display: flex; flex-direction: column;
+  background: var(--bg-panel);
+  border-right: 1.5px solid var(--border);
 }
-
-.theme-toggle {
-  position: absolute;
-  top: 20px;
-  right: 20px;
-  background-color: var(--button-bg);
-  color: var(--button-text);
-  border: none;
-  border-radius: 8px;
-  padding: 10px 20px;
-  font-size: 14px;
+.console-section {
+  flex: 1;
+  background: var(--console-bg);
+  color: var(--console-text);
+  display: flex; flex-direction: column; min-width:0;
+  font-size: 1rem;
+}
+.console-header {
+  padding: 8px 20px;
   font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  background: #21232a;
+  border-bottom: 1px solid #25272c;
+  color: var(--accent);
+  letter-spacing: 0.3px;
 }
 
-.theme-toggle:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
-  opacity: 0.9;
+.console-output {
+  padding: 17px 16px; flex: 1 1 0;
+  overflow-y: auto; font-family: "Fira Mono","Menlo","Monaco",monospace;
+  word-break: break-word;
+  background: var(--console-bg);
+}
+.console-placeholder {
+  color: #858a92;
+  opacity: 0.7;
+  font-style: italic;
+}
+.console-log { color: var(--console-text);}
+.console-error { color: #ff4c4c; white-space: pre-wrap;}
+.console-alert { color: var(--accent);}
+.error-notice {
+  background: #fff3e0;
+  color: #d84315;
+  padding: 9px 13px;
+  border-radius: 6px;
+  margin: 7px 17px 0 17px;
+  border: 1px solid #ffe0b2;
+  font-size: 1.02em;
 }
 
-.theme-toggle:active {
-  transform: translateY(0);
+.footer-note {
+  padding: 8px 24px;
+  color: var(--text-secondary);
+  font-size: 1em;
+  text-align: right;
+  background: var(--bg-panel);
+  border-top: 1px solid var(--border);
 }
+.footer-note a { color: var(--primary); text-decoration: none; }
+.footer-note a:hover { text-decoration: underline; }
 
-@keyframes App-logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+@media (max-width: 900px) {
+  .split-layout { flex-direction: column; }
+  .editor-section, .console-section { min-height: 230px; }
+  .editor-section, .console-section { border: none; border-bottom: 1.5px solid var(--border);}
+  .console-section { flex: 1.2; }
+  .console-header { font-size: 1.07rem;}
 }
-
-/* Responsive design for mobile */
-@media (max-width: 768px) {
-  .theme-toggle {
-    top: 10px;
-    right: 10px;
-    padding: 8px 16px;
-    font-size: 12px;
-  }
+@media (max-width: 600px) {
+  .playground-header { flex-direction: column; gap: 7px; padding:14px 8px 7px 8px;}
+  .footer-note { font-size:0.93em; padding: 8px 6px;}
+  .console-header { padding-left: 12px;}
+  .console-output { padding: 12px 7px;}
 }
